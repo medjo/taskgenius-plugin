@@ -24,6 +24,7 @@ import { ConfigurableTaskParser } from "./core/ConfigurableTaskParser";
 import { MetadataParseMode } from "../types/TaskParserConfig";
 import { TimeParsingService } from "../services/time-parsing-service";
 import type { EnhancedTimeParsingConfig } from "../types/time-parsing";
+import { syncDailyNoteDerivedDatesToTaskLines } from "@/utils/date/daily-note-date-sync";
 
 /**
  * DataflowOrchestrator - Coordinates all dataflow components
@@ -650,7 +651,7 @@ export class DataflowOrchestrator {
 			// Step 2: Check cache and parse if needed
 			const rawCached = await this.storage.loadRaw(filePath);
 			const augmentedCached = await this.storage.loadAugmented(filePath);
-			const fileContent = await this.vault.cachedRead(file);
+			let fileContent = await this.vault.cachedRead(file);
 			console.log("[DataflowOrchestrator] processFileImmediate start", {
 				filePath,
 				forceInvalidate,
@@ -792,12 +793,46 @@ export class DataflowOrchestrator {
 						rawTasks = [];
 					}
 
+					if (
+						includeInlineParse &&
+						this.plugin.settings.useDailyNotePathAsDate
+					) {
+						const syncResult = syncDailyNoteDerivedDatesToTaskLines(
+							fileContent,
+							rawTasks,
+							this.plugin.settings.preferMetadataFormat || "tasks",
+						);
+
+						if (syncResult.changed) {
+							emit(this.app, Events.WRITE_OPERATION_START, {
+								path: filePath,
+								taskId: "__daily-note-date-sync__",
+							});
+							await this.vault.modify(file, syncResult.content);
+							emit(this.app, Events.WRITE_OPERATION_COMPLETE, {
+								path: filePath,
+								taskId: "__daily-note-date-sync__",
+							});
+
+							fileContent = syncResult.content;
+							const updatedStat =
+								await this.vault.adapter.stat(filePath);
+							if (updatedStat?.mtime) {
+								console.log(
+									`[DataflowOrchestrator] Persisted ${syncResult.changedLineCount} derived daily note date(s) to ${filePath}`,
+								);
+							}
+						}
+					}
+
 					// Store raw tasks with file content and mtime
+					const effectiveStat = await this.vault.adapter.stat(filePath);
+					const effectiveMtime = effectiveStat?.mtime ?? mtime;
 					await this.storage.storeRaw(
 						filePath,
 						rawTasks,
 						fileContent,
-						mtime,
+						effectiveMtime,
 					);
 				}
 
