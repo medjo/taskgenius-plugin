@@ -12,12 +12,12 @@ import {
 	BatchIndexResult,
 	TaskWorkerSettings,
 } from "./task-index-message";
-import { parse } from "date-fns/parse";
 import { MarkdownTaskParser } from "../core/ConfigurableTaskParser";
 import { getConfig } from "../../common/task-parser-config";
 import { FileMetadataTaskParser } from "../../parsers/file-metadata-parser";
 import { CanvasParser } from "../core/CanvasParser";
 import { SupportedFileType } from "@/utils/file/file-type-detector";
+import { parseDailyNotePathDate } from "@/utils/date/daily-note-path-parser";
 
 /**
  * Enhanced task parsing using configurable parser
@@ -237,43 +237,7 @@ function extractDateFromPath(
 		dailyNotePath: string;
 	},
 ): number | undefined {
-	if (!settings.useDailyNotePathAsDate) return undefined;
-
-	// Remove file extension first
-	let pathToMatch = filePath.replace(/\.[^/.]+$/, "");
-
-	// If dailyNotePath is specified, remove it from the path
-	if (
-		settings.dailyNotePath &&
-		pathToMatch.startsWith(settings.dailyNotePath)
-	) {
-		pathToMatch = pathToMatch.substring(settings.dailyNotePath.length);
-		// Remove leading slash if present
-		if (pathToMatch.startsWith("/")) {
-			pathToMatch = pathToMatch.substring(1);
-		}
-	}
-
-	// Try to match with the current path
-	let dateFromPath = parse(pathToMatch, settings.dailyNoteFormat, new Date());
-
-	// If no match, recursively try with subpaths
-	if (isNaN(dateFromPath.getTime()) && pathToMatch.includes("/")) {
-		return extractDateFromPath(
-			pathToMatch.substring(pathToMatch.indexOf("/") + 1),
-			{
-				...settings,
-				dailyNotePath: "", // Clear dailyNotePath for recursive calls
-			},
-		);
-	}
-
-	// Return the timestamp if we found a valid date
-	if (!isNaN(dateFromPath.getTime())) {
-		return dateFromPath.getTime();
-	}
-
-	return undefined;
+	return parseDailyNotePathDate(filePath, settings);
 }
 
 /**
