@@ -10,7 +10,11 @@ import {
 } from "@/common/setting-definition";
 import Sortable from "sortablejs";
 import { ListConfigModal } from "@/components/ui/modals/ListConfigModal";
-import * as taskStatusModule from "@/common/task-status";
+import {
+	applyStatusThemeToSettings,
+	appendStatusThemeCycle,
+	ensureDefaultStatusCycle,
+} from "@/utils/status-theme-settings";
 
 export function renderTaskStatusSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
@@ -138,6 +142,7 @@ export function renderTaskStatusSettingsTab(
 		.setHeading()
 		.addDropdown((dropdown) => {
 			dropdown.addOption("custom", "Custom");
+			dropdown.addOption("Default", t("Default"));
 			for (const statusCollection of allStatusCollections) {
 				dropdown.addOption(statusCollection, statusCollection);
 			}
@@ -176,88 +181,13 @@ export function renderTaskStatusSettingsTab(
 				confirmButton.addEventListener("click", async () => {
 					modal.close();
 
-					// Apply the selected theme's task statuses
 					try {
-						// Get the function based on the selected theme
-						const functionName =
-							value.toLowerCase() + "SupportedStatuses";
-
-						// Use type assertion for the dynamic function access
-						const getStatuses = (taskStatusModule as any)[
-							functionName
-						];
-
-						if (typeof getStatuses === "function") {
-							const statuses = getStatuses();
-
-							// Update cycle and marks
-							const cycle =
-								settingTab.plugin.settings.taskStatusCycle;
-							const marks =
-								settingTab.plugin.settings.taskStatusMarks;
-							const excludeMarks =
-								settingTab.plugin.settings
-									.excludeMarksFromCycle;
-
-							// Clear existing cycle, marks and excludeMarks
-							cycle.length = 0;
-							Object.keys(marks).forEach(
-								(key) => delete marks[key],
-							);
-							excludeMarks.length = 0;
-
-							// Add new statuses to cycle and marks
-							for (const [symbol, name, type] of statuses) {
-								const realName = (name as string)
-									.split("/")[0]
-									.trim();
-								// Add to cycle if not already included
-								if (!cycle.includes(realName)) {
-									cycle.push(realName);
-								}
-
-								// Add to marks
-								marks[realName] = symbol;
-
-								// Add to excludeMarks if not space or x
-								if (symbol !== " " && symbol !== "x") {
-									excludeMarks.push(realName);
-								}
-							}
-
-							// Also update the main taskStatuses object based on the theme
-							const statusMap: Record<string, string[]> = {
-								completed: [],
-								inProgress: [],
-								abandoned: [],
-								notStarted: [],
-								planned: [],
-							};
-							for (const [symbol, _, type] of statuses) {
-								if (type in statusMap) {
-									statusMap[
-										type as keyof typeof statusMap
-									].push(symbol);
-								}
-							}
-							// Corrected loop and assignment for TaskStatusConfig here too
-							for (const type of Object.keys(statusMap) as Array<
-								keyof TaskStatusConfig
-							>) {
-								if (
-									type in
-										settingTab.plugin.settings
-											.taskStatuses &&
-									statusMap[type] &&
-									statusMap[type].length > 0
-								) {
-									settingTab.plugin.settings.taskStatuses[
-										type
-									] = statusMap[type].join("|");
-								}
-							}
-
-							// Save settings and refresh the display
+						if (
+							applyStatusThemeToSettings(
+								settingTab.plugin.settings,
+								value,
+							)
+						) {
 							settingTab.applySettingsUpdate();
 							refreshTaskStatusSettingsTab();
 						}
@@ -707,17 +637,7 @@ export function renderTaskStatusSettingsTab(
 			!settingTab.plugin.settings.statusCycles ||
 			settingTab.plugin.settings.statusCycles.length === 0
 		) {
-			settingTab.plugin.settings.statusCycles = [
-				{
-					id: `cycle-${Date.now()}`,
-					name: t("Default Cycle"),
-					description: t("Migrated from legacy settings"),
-					priority: 0,
-					cycle: [...settingTab.plugin.settings.taskStatusCycle],
-					marks: { ...settingTab.plugin.settings.taskStatusMarks },
-					enabled: true,
-				},
-			];
+			ensureDefaultStatusCycle(settingTab.plugin.settings);
 			settingTab.applySettingsUpdate();
 		}
 
@@ -770,92 +690,16 @@ export function renderTaskStatusSettingsTab(
 					confirmButton.addEventListener("click", async () => {
 						modal.close();
 
-						// Add a new cycle based on the selected theme
 						try {
-							// Get the function based on the selected theme
-							const functionName =
-								value.toLowerCase() + "SupportedStatuses";
-
-							// Use type assertion for the dynamic function access
-							const getStatuses = (taskStatusModule as any)[
-								functionName
-							];
-
-							if (typeof getStatuses === "function") {
-								const statuses = getStatuses();
-
-								// Create new cycle arrays
-								const newCycle: string[] = [];
-								const newMarks: Record<string, string> = {};
-
-								// Add new statuses to cycle and marks
-								for (const [symbol, name, type] of statuses) {
-									const realName = (name as string)
-										.split("/")[0]
-										.trim();
-									// Add to cycle if not already included
-									if (!newCycle.includes(realName)) {
-										newCycle.push(realName);
-									}
-
-									// Add to marks
-									newMarks[realName] = symbol;
-								}
-
-								// Create the new status cycle
-								const newStatusCycle: StatusCycle = {
-									id: `cycle-${Date.now()}`,
-									name: value,
-									description: t(`${value} theme workflow`),
-									priority:
-										settingTab.plugin.settings.statusCycles!
-											.length,
-									cycle: newCycle,
-									marks: newMarks,
-									enabled: true,
-								};
-
-								// Add to statusCycles array
-								settingTab.plugin.settings.statusCycles!.push(
-									newStatusCycle,
-								);
-
-								// Also update the main taskStatuses object based on the theme
-								const statusMap: Record<string, string[]> = {
-									completed: [],
-									inProgress: [],
-									abandoned: [],
-									notStarted: [],
-									planned: [],
-								};
-								for (const [symbol, _, type] of statuses) {
-									if (type in statusMap) {
-										statusMap[
-											type as keyof typeof statusMap
-										].push(symbol);
-									}
-								}
-								// Corrected loop and assignment for TaskStatusConfig here too
-								for (const type of Object.keys(
-									statusMap,
-								) as Array<keyof TaskStatusConfig>) {
-									if (
-										type in
-											settingTab.plugin.settings
-												.taskStatuses &&
-										statusMap[type] &&
-										statusMap[type].length > 0
-									) {
-										settingTab.plugin.settings.taskStatuses[
-											type
-										] = statusMap[type].join("|");
-									}
-								}
-
-								// Save settings and refresh the display
-								settingTab.applySettingsUpdate();
-								refreshTaskStatusSettingsTab();
-							}
+						if (
+							appendStatusThemeCycle(
+								settingTab.plugin.settings,
+								value,
+							)
+						) {
+							settingTab.applySettingsUpdate();
+							refreshTaskStatusSettingsTab();
+						}
 						} catch (error) {
 							console.error(
 								"Failed to apply checkbox status theme:",
@@ -1194,17 +1038,20 @@ function renderMultiCycleManagement(
 					.setTooltip(t("Copy this cycle"))
 					.onClick(() => {
 						// Create a deep copy of the cycle
-						const copiedCycle: StatusCycle = {
-							id: `cycle-${Date.now()}`,
-							name: `${cycle.name} (Copy)`,
-							description: cycle.description,
-							priority:
-								settingTab.plugin.settings.statusCycles!.length,
-							cycle: [...cycle.cycle],
-							marks: { ...cycle.marks },
-							enabled: cycle.enabled,
-							color: cycle.color,
-							icon: cycle.icon,
+							const copiedCycle: StatusCycle = {
+								id: `cycle-${Date.now()}`,
+								name: `${cycle.name} (Copy)`,
+								description: cycle.description,
+								priority:
+									settingTab.plugin.settings.statusCycles!.length,
+								cycle: [...cycle.cycle],
+								marks: { ...cycle.marks },
+								excludeFromCycle: [
+									...(cycle.excludeFromCycle || []),
+								],
+								enabled: cycle.enabled,
+								color: cycle.color,
+								icon: cycle.icon,
 						};
 						settingTab.plugin.settings.statusCycles!.push(
 							copiedCycle,
@@ -1222,14 +1069,22 @@ function renderMultiCycleManagement(
 							settingTab.plugin.settings.statusCycles!.findIndex(
 								(c) => c.id === cycle.id,
 							);
-						if (cycleIndex !== -1) {
-							settingTab.plugin.settings.statusCycles!.splice(
-								cycleIndex,
-								1,
-							);
-							settingTab.applySettingsUpdate();
-							setTimeout(
-								() => refreshTaskStatusSettingsTab(),
+							if (cycleIndex !== -1) {
+								settingTab.plugin.settings.statusCycles!.splice(
+									cycleIndex,
+									1,
+								);
+								if (
+									settingTab.plugin.settings.statusCycles!
+										.length === 0
+								) {
+									ensureDefaultStatusCycle(
+										settingTab.plugin.settings,
+									);
+								}
+								settingTab.applySettingsUpdate();
+								setTimeout(
+									() => refreshTaskStatusSettingsTab(),
 								200,
 							);
 						}
@@ -1281,6 +1136,13 @@ function renderMultiCycleManagement(
 								cycle.marks[value] = cycle.marks[oldName];
 								delete cycle.marks[oldName];
 							}
+							if ((cycle.excludeFromCycle || []).includes(oldName)) {
+								cycle.excludeFromCycle =
+									(cycle.excludeFromCycle || []).filter(
+										(name) => name !== oldName,
+									);
+								cycle.excludeFromCycle.push(value);
+							}
 
 							settingTab.applySettingsUpdate();
 						});
@@ -1296,6 +1158,23 @@ function renderMultiCycleManagement(
 					text.inputEl.style.width = "50px";
 					text.inputEl.maxLength = 1;
 				})
+				.addToggle((toggle) => {
+					toggle
+						.setTooltip(t("Include in cycle"))
+						.setValue(
+							!(cycle.excludeFromCycle || []).includes(statusName),
+						)
+						.onChange((value) => {
+							const excluded = new Set(cycle.excludeFromCycle || []);
+							if (value) {
+								excluded.delete(statusName);
+							} else {
+								excluded.add(statusName);
+							}
+							cycle.excludeFromCycle = Array.from(excluded);
+							settingTab.applySettingsUpdate();
+						});
+				})
 				.addExtraButton((button) => {
 					button
 						.setIcon("trash")
@@ -1303,6 +1182,10 @@ function renderMultiCycleManagement(
 						.onClick(() => {
 							cycle.cycle.splice(statusIndex, 1);
 							delete cycle.marks[statusName];
+							cycle.excludeFromCycle =
+								(cycle.excludeFromCycle || []).filter(
+									(name) => name !== statusName,
+								);
 							settingTab.applySettingsUpdate();
 							setTimeout(
 								() => refreshTaskStatusSettingsTab(),
@@ -1334,13 +1217,14 @@ function renderMultiCycleManagement(
 
 		// Add status button
 		new Setting(statusListContainer).addButton((button) => {
-			button.setButtonText(t("+ Add Status")).onClick(() => {
-				const newStatus = `STATUS_${cycle.cycle.length + 1}`;
-				cycle.cycle.push(newStatus);
-				cycle.marks[newStatus] = " ";
-				settingTab.applySettingsUpdate();
-				setTimeout(() => refreshTaskStatusSettingsTab(), 200);
-			});
+				button.setButtonText(t("+ Add Status")).onClick(() => {
+					const newStatus = `STATUS_${cycle.cycle.length + 1}`;
+					cycle.cycle.push(newStatus);
+					cycle.marks[newStatus] = " ";
+					cycle.excludeFromCycle = cycle.excludeFromCycle || [];
+					settingTab.applySettingsUpdate();
+					setTimeout(() => refreshTaskStatusSettingsTab(), 200);
+				});
 		});
 	});
 
@@ -1360,6 +1244,7 @@ function renderMultiCycleManagement(
 						TODO: " ",
 						DONE: "x",
 					},
+					excludeFromCycle: [],
 					enabled: true,
 				});
 				settingTab.applySettingsUpdate();

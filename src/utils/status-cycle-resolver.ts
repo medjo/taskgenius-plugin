@@ -8,6 +8,11 @@
 
 import type { StatusCycle } from "@/common/setting-definition";
 
+function getCyclableStatuses(cycle: StatusCycle): string[] {
+	const excludedStatuses = new Set(cycle.excludeFromCycle || []);
+	return cycle.cycle.filter((statusName) => !excludedStatuses.has(statusName));
+}
+
 /**
  * Result of finding the next status in a cycle
  */
@@ -55,6 +60,10 @@ export function getNextStatus(
 	currentMark: string,
 	cycle: StatusCycle,
 ): NextStatusResult | null {
+	if (getCyclableStatuses(cycle).length === 0) {
+		return null;
+	}
+
 	// Find which status has the current mark
 	let currentStatusName: string | null = null;
 	for (const statusName of cycle.cycle) {
@@ -74,16 +83,21 @@ export function getNextStatus(
 		return null;
 	}
 
-	// Calculate next index (wraps around to 0)
-	const nextIndex = (currentIndex + 1) % cycle.cycle.length;
-	const nextStatusName = cycle.cycle[nextIndex];
-	const nextMark = cycle.marks[nextStatusName];
+	for (let offset = 1; offset <= cycle.cycle.length; offset++) {
+		const nextIndex = (currentIndex + offset) % cycle.cycle.length;
+		const nextStatusName = cycle.cycle[nextIndex];
+		if ((cycle.excludeFromCycle || []).includes(nextStatusName)) {
+			continue;
+		}
 
-	return {
-		statusName: nextStatusName,
-		mark: nextMark,
-		cycle,
-	};
+		return {
+			statusName: nextStatusName,
+			mark: cycle.marks[nextStatusName],
+			cycle,
+		};
+	}
+
+	return null;
 }
 
 /**
@@ -97,6 +111,10 @@ export function getPreviousStatus(
 	currentMark: string,
 	cycle: StatusCycle,
 ): NextStatusResult | null {
+	if (getCyclableStatuses(cycle).length === 0) {
+		return null;
+	}
+
 	// Find which status has the current mark
 	let currentStatusName: string | null = null;
 	for (const statusName of cycle.cycle) {
@@ -116,17 +134,22 @@ export function getPreviousStatus(
 		return null;
 	}
 
-	// Calculate previous index (wraps around to end)
-	const previousIndex =
-		(currentIndex - 1 + cycle.cycle.length) % cycle.cycle.length;
-	const previousStatusName = cycle.cycle[previousIndex];
-	const previousMark = cycle.marks[previousStatusName];
+	for (let offset = 1; offset <= cycle.cycle.length; offset++) {
+		const previousIndex =
+			(currentIndex - offset + cycle.cycle.length) % cycle.cycle.length;
+		const previousStatusName = cycle.cycle[previousIndex];
+		if ((cycle.excludeFromCycle || []).includes(previousStatusName)) {
+			continue;
+		}
 
-	return {
-		statusName: previousStatusName,
-		mark: previousMark,
-		cycle,
-	};
+		return {
+			statusName: previousStatusName,
+			mark: cycle.marks[previousStatusName],
+			cycle,
+		};
+	}
+
+	return null;
 }
 
 /**
@@ -378,9 +401,9 @@ export function getTaskStatusConfig(
 			const primaryCycle = findPrimaryCycle(currentMark, statusCycles);
 			if (primaryCycle) {
 				return {
-					cycle: primaryCycle.cycle,
+					cycle: getCyclableStatuses(primaryCycle),
 					marks: primaryCycle.marks,
-					excludeMarksFromCycle: [],
+					excludeMarksFromCycle: primaryCycle.excludeFromCycle || [],
 					isMultiCycle: true,
 					currentCycleId: primaryCycle.id,
 				};
@@ -392,9 +415,9 @@ export function getTaskStatusConfig(
 			(a, b) => a.priority - b.priority,
 		)[0];
 		return {
-			cycle: primaryCycle.cycle,
+			cycle: getCyclableStatuses(primaryCycle),
 			marks: primaryCycle.marks,
-			excludeMarksFromCycle: [],
+			excludeMarksFromCycle: primaryCycle.excludeFromCycle || [],
 			isMultiCycle: true,
 			currentCycleId: primaryCycle.id,
 		};

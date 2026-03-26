@@ -349,6 +349,8 @@ export interface StatusCycle {
 	cycle: string[];
 	/** Mapping from status name to checkbox mark character */
 	marks: Record<string, string>;
+	/** Status names that should be available manually but skipped in click-cycling */
+	excludeFromCycle?: string[];
 	/** Whether this cycle is currently enabled */
 	enabled: boolean;
 	/** Optional color for UI visualization */
@@ -1103,6 +1105,7 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 				Abandoned: "-",
 				Planned: "?",
 			},
+			excludeFromCycle: [],
 			enabled: true,
 		},
 	],
