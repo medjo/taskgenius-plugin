@@ -747,14 +747,21 @@ export function filterTasks(
 				break;
 			}
 			case "today": {
-				const today = moment().startOf("day");
-				const isToday = (d?: string | number | Date) =>
-					d ? moment(d).isSame(today, "day") : false;
+				const today = new Date();
+				today.setHours(0, 0, 0, 0);
+				const todayTimestamp = today.getTime();
+				const isTodayOrOverdue = (d?: string | number | Date) => {
+					if (d === undefined || d === null) return false;
+					const taskDate = new Date(d);
+					if (Number.isNaN(taskDate.getTime())) return false;
+					taskDate.setHours(0, 0, 0, 0);
+					return taskDate.getTime() <= todayTimestamp;
+				};
 				filtered = filtered.filter(
 					(task) =>
-						isToday(task.metadata?.dueDate) ||
-						isToday(task.metadata?.scheduledDate) ||
-						isToday(task.metadata?.startDate),
+						isTodayOrOverdue(task.metadata?.dueDate) ||
+						isTodayOrOverdue(task.metadata?.scheduledDate) ||
+						isTodayOrOverdue(task.metadata?.startDate),
 				);
 				break;
 			}
