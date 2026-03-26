@@ -245,11 +245,22 @@ export class TaskDetailsComponent extends Component {
 		// }
 
 		// if (task.metadata.completedDate) {
-		// 	const completedDateText = new Date(
+		// 	const completedDateText = timestampToLocalDateString(
 		// 		task.metadata.completedDate
-		// 	).toLocaleDateString();
+		// 	);
 		// 	this.addMetadataField(metaEl, "Completed", completedDateText);
 		// }
+
+		if (task.metadata.completedDate) {
+			const completedDateText = timestampToLocalDateString(
+				task.metadata.completedDate,
+			);
+			this.addMetadataField(
+				metaEl,
+				t("Completed Date"),
+				completedDateText,
+			);
+		}
 
 		// if (task.metadata.priority) {
 		// 	let priorityText = "Low";
