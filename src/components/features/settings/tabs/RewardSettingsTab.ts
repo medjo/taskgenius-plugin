@@ -8,6 +8,11 @@ export function renderRewardSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement
 ) {
+	const refreshRewardSettingsTab = () => {
+		containerEl.empty();
+		renderRewardSettingsTab(settingTab, containerEl);
+	};
+
 	new Setting(containerEl)
 		.setName(t("Rewards"))
 		.setDesc(
@@ -28,7 +33,7 @@ export function renderRewardSettingsTab(
 					settingTab.plugin.settings.rewards.enableRewards = value;
 					settingTab.applySettingsUpdate();
 					setTimeout(() => {
-						settingTab.display();
+						refreshRewardSettingsTab();
 					}, 200);
 				})
 		);
@@ -127,7 +132,7 @@ export function renderRewardSettingsTab(
 							settingTab.applySettingsUpdate();
 
 							setTimeout(() => {
-								settingTab.display();
+								refreshRewardSettingsTab();
 							}, 200);
 						})
 				);
@@ -148,7 +153,7 @@ export function renderRewardSettingsTab(
 				);
 				settingTab.applySettingsUpdate();
 				setTimeout(() => {
-					settingTab.display();
+					refreshRewardSettingsTab();
 				}, 200);
 			})
 	);
@@ -252,7 +257,7 @@ export function renderRewardSettingsTab(
 						);
 						settingTab.applySettingsUpdate();
 						setTimeout(() => {
-							settingTab.display();
+							refreshRewardSettingsTab();
 						}, 200);
 					})
 			);
@@ -287,7 +292,7 @@ export function renderRewardSettingsTab(
 				settingTab.plugin.settings.rewards.rewardItems.push(newItem);
 				settingTab.applySettingsUpdate();
 				setTimeout(() => {
-					settingTab.display();
+					refreshRewardSettingsTab();
 				}, 200);
 			})
 	);

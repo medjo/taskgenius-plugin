@@ -54,6 +54,16 @@ export function renderMcpIntegrationSettingsTab(
 	plugin: TaskProgressBarPlugin,
 	applySettingsUpdate: () => void
 ): void {
+	const refreshMcpIntegrationSettingsTab = () => {
+		containerEl.empty();
+		renderMcpIntegrationSettingsTab(
+			settingTab,
+			containerEl,
+			plugin,
+			applySettingsUpdate,
+		);
+	};
+
 	// Only show on desktop
 	if (!Platform.isDesktopApp) {
 		containerEl.createEl("div", {
@@ -128,13 +138,13 @@ export function renderMcpIntegrationSettingsTab(
 									);
 
 									setTimeout(() => {
-										settingTab.display();
+										refreshMcpIntegrationSettingsTab();
 										settingTab.openTab("mcp-integration");
 									}, 800);
 								} else {
 									// User cancelled, revert toggle
 									toggle.setValue(false);
-									settingTab.display();
+									refreshMcpIntegrationSettingsTab();
 									settingTab.openTab("mcp-integration");
 								}
 							},

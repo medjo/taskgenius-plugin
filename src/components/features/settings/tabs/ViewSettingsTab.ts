@@ -11,6 +11,11 @@ export function renderViewSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement,
 ) {
+	const refreshViewSettingsTab = () => {
+		containerEl.empty();
+		renderViewSettingsTab(settingTab, containerEl);
+	};
+
 	new Setting(containerEl)
 		.setName(t("View Configuration"))
 		.setDesc(
@@ -42,7 +47,7 @@ export function renderViewSettingsTab(
 				}
 				settingTab.plugin.settings.enableView = value;
 				settingTab.applySettingsUpdate();
-				settingTab.display(); // Refresh settings display
+				refreshViewSettingsTab();
 			});
 		});
 

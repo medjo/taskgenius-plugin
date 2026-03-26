@@ -7,6 +7,11 @@ export function renderDesktopIntegrationSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement
 ) {
+	const refreshDesktopIntegrationSettingsTab = () => {
+		containerEl.empty();
+		renderDesktopIntegrationSettingsTab(settingTab, containerEl);
+	};
+
 	// Header
 	new Setting(containerEl)
 		.setName(t("Desktop Integration"))
@@ -53,7 +58,7 @@ export function renderDesktopIntegrationSettingsTab(
 				settingTab.applyNotificationsUpdateLight();
 
 				setTimeout(() => {
-					settingTab.display();
+					refreshDesktopIntegrationSettingsTab();
 				}, 200);
 			});
 		});

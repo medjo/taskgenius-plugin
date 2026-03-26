@@ -8,6 +8,11 @@ export function renderQuickCaptureSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement,
 ) {
+	const refreshQuickCaptureSettingsTab = () => {
+		containerEl.empty();
+		renderQuickCaptureSettingsTab(settingTab, containerEl);
+	};
+
 	new Setting(containerEl).setName(t("Quick capture")).setHeading();
 
 	new Setting(containerEl)
@@ -24,7 +29,7 @@ export function renderQuickCaptureSettingsTab(
 					settingTab.applySettingsUpdate();
 
 					setTimeout(() => {
-						settingTab.display();
+						refreshQuickCaptureSettingsTab();
 					}, 200);
 				}),
 		);
@@ -46,7 +51,7 @@ export function renderQuickCaptureSettingsTab(
 					settingTab.applySettingsUpdate();
 					// Refresh the settings display to show/hide relevant options
 					setTimeout(() => {
-						settingTab.display();
+						refreshQuickCaptureSettingsTab();
 					}, 100);
 				}),
 		);
@@ -106,7 +111,7 @@ export function renderQuickCaptureSettingsTab(
 
 							// Refresh the settings display
 							setTimeout(() => {
-								settingTab.display();
+								refreshQuickCaptureSettingsTab();
 							}, 200);
 
 							new Notice(
@@ -240,7 +245,7 @@ export function renderQuickCaptureSettingsTab(
 					settingTab.applySettingsUpdate();
 					// Refresh to show/hide the prefix format field
 					setTimeout(() => {
-						settingTab.display();
+						refreshQuickCaptureSettingsTab();
 					}, 100);
 				}),
 		);
@@ -373,7 +378,7 @@ export function renderQuickCaptureSettingsTab(
 					settingTab.applySettingsUpdate();
 					// Refresh to show/hide template field
 					setTimeout(() => {
-						settingTab.display();
+						refreshQuickCaptureSettingsTab();
 					}, 100);
 				}),
 		);
@@ -424,7 +429,7 @@ export function renderQuickCaptureSettingsTab(
 						}
 						settingTab.applySettingsUpdate();
 						setTimeout(() => {
-							settingTab.display();
+							refreshQuickCaptureSettingsTab();
 						}, 100);
 					});
 
@@ -665,7 +670,7 @@ export function renderQuickCaptureSettingsTab(
 					settingTab.applySettingsUpdate();
 					// Refresh the settings display to show/hide minimal mode options
 					setTimeout(() => {
-						settingTab.display();
+						refreshQuickCaptureSettingsTab();
 					}, 100);
 				}),
 		);

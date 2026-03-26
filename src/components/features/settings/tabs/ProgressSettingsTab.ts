@@ -8,6 +8,11 @@ export function renderProgressSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement
 ) {
+	const refreshProgressSettingsTab = () => {
+		containerEl.empty();
+		renderProgressSettingsTab(settingTab, containerEl);
+	};
+
 	new Setting(containerEl)
 		.setName(t("Progress bar"))
 		.setDesc(
@@ -31,7 +36,7 @@ export function renderProgressSettingsTab(
 				.onChange(async (value: any) => {
 					settingTab.plugin.settings.progressBarDisplayMode = value;
 					settingTab.applySettingsUpdate();
-					settingTab.display();
+					refreshProgressSettingsTab();
 				})
 		);
 	progressDisplaySetting.settingEl.setAttribute("data-setting-id", "progress-display-mode");
@@ -176,7 +181,11 @@ export function renderProgressSettingsTab(
 			settingTab.plugin.settings.progressBarDisplayMode === "text" ||
 			settingTab.plugin.settings.progressBarDisplayMode === "both"
 		) {
-			displayNumberToProgressbar(settingTab, containerEl);
+			displayNumberToProgressbar(
+				settingTab,
+				containerEl,
+				refreshProgressSettingsTab,
+			);
 		}
 
 		new Setting(containerEl).setName(t("Hide progress bars")).setHeading();
@@ -200,7 +209,7 @@ export function renderProgressSettingsTab(
 						settingTab.applySettingsUpdate();
 
 						setTimeout(() => {
-							settingTab.display();
+							refreshProgressSettingsTab();
 						}, 200);
 					})
 			);
@@ -294,7 +303,8 @@ export function renderProgressSettingsTab(
 
 function displayNumberToProgressbar(
 	settingTab: TaskProgressBarSettingTab,
-	containerEl: HTMLElement
+	containerEl: HTMLElement,
+	refreshProgressSettingsTab: () => void,
 ): void {
 	// Add setting for display mode
 	new Setting(containerEl)
@@ -318,7 +328,7 @@ function displayNumberToProgressbar(
 				.onChange(async (value: any) => {
 					settingTab.plugin.settings.displayMode = value;
 					settingTab.applySettingsUpdate();
-					settingTab.display();
+					refreshProgressSettingsTab();
 				});
 		});
 
@@ -538,12 +548,16 @@ function displayNumberToProgressbar(
 							settingTab.plugin.settings.customizeProgressRanges =
 								value;
 							settingTab.applySettingsUpdate();
-							settingTab.display();
+							refreshProgressSettingsTab();
 						})
 				);
 
 			if (settingTab.plugin.settings.customizeProgressRanges) {
-				addProgressRangesSettings(settingTab, containerEl);
+				addProgressRangesSettings(
+					settingTab,
+					containerEl,
+					refreshProgressSettingsTab,
+				);
 			}
 		}
 	}
@@ -551,7 +565,8 @@ function displayNumberToProgressbar(
 
 function addProgressRangesSettings(
 	settingTab: TaskProgressBarSettingTab,
-	containerEl: HTMLElement
+	containerEl: HTMLElement,
+	refreshProgressSettingsTab: () => void,
 ) {
 	new Setting(containerEl)
 		.setName(t("Progress Ranges"))
@@ -589,7 +604,7 @@ function addProgressRangesSettings(
 				button.setButtonText("Delete").onClick(async () => {
 					settingTab.plugin.settings.progressRanges.splice(index, 1);
 					settingTab.applySettingsUpdate();
-					settingTab.display();
+					refreshProgressSettingsTab();
 				});
 			});
 	});
@@ -655,7 +670,7 @@ function addProgressRangesSettings(
 				inputs[2].value = "";
 
 				settingTab.applySettingsUpdate();
-				settingTab.display();
+				refreshProgressSettingsTab();
 			});
 		});
 
@@ -689,7 +704,7 @@ function addProgressRangesSettings(
 					},
 				];
 				settingTab.applySettingsUpdate();
-				settingTab.display();
+				refreshProgressSettingsTab();
 			});
 		});
 }

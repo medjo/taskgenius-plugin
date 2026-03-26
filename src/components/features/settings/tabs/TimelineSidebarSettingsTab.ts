@@ -6,6 +6,11 @@ export function renderTimelineSidebarSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement
 ) {
+	const refreshTimelineSidebarSettingsTab = () => {
+		containerEl.empty();
+		renderTimelineSidebarSettingsTab(settingTab, containerEl);
+	};
+
 	new Setting(containerEl).setName(t("Timeline Sidebar")).setHeading();
 
 	new Setting(containerEl)
@@ -27,7 +32,7 @@ export function renderTimelineSidebarSettingsTab(
 					settingTab.applySettingsUpdate();
 
 					setTimeout(() => {
-						settingTab.display();
+						refreshTimelineSidebarSettingsTab();
 						if (value) {
 							settingTab.plugin.activateTimelineSidebarView();
 						}

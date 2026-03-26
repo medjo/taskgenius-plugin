@@ -10,6 +10,11 @@ export function renderTaskHandlerSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement
 ) {
+	const refreshTaskHandlerSettingsTab = () => {
+		containerEl.empty();
+		renderTaskHandlerSettingsTab(settingTab, containerEl);
+	};
+
 	new Setting(containerEl)
 		.setName(t("Task Gutter"))
 		.setDesc(t("Configure the task gutter."))
@@ -50,7 +55,7 @@ export function renderTaskHandlerSettingsTab(
 					settingTab.applySettingsUpdate();
 
 					setTimeout(() => {
-						settingTab.display();
+						refreshTaskHandlerSettingsTab();
 					}, 200);
 				})
 		);
@@ -215,7 +220,7 @@ export function renderTaskHandlerSettingsTab(
 					settingTab.plugin.settings.completedTaskMover.enableAutoMove =
 						value;
 					settingTab.applySettingsUpdate();
-					settingTab.display(); // Refresh to show/hide auto-move settings
+					refreshTaskHandlerSettingsTab();
 				});
 			});
 
@@ -262,7 +267,7 @@ export function renderTaskHandlerSettingsTab(
 								settingTab.plugin.settings.completedTaskMover.defaultInsertionMode =
 									value;
 								settingTab.applySettingsUpdate();
-								settingTab.display(); // Refresh to show/hide heading setting
+								refreshTaskHandlerSettingsTab();
 							}
 						);
 				});
@@ -448,7 +453,7 @@ export function renderTaskHandlerSettingsTab(
 					settingTab.plugin.settings.completedTaskMover.enableIncompletedAutoMove =
 						value;
 					settingTab.applySettingsUpdate();
-					settingTab.display(); // Refresh to show/hide auto-move settings
+					refreshTaskHandlerSettingsTab();
 				});
 			});
 
@@ -498,7 +503,7 @@ export function renderTaskHandlerSettingsTab(
 								settingTab.plugin.settings.completedTaskMover.incompletedDefaultInsertionMode =
 									value;
 								settingTab.applySettingsUpdate();
-								settingTab.display(); // Refresh to show/hide heading setting
+								refreshTaskHandlerSettingsTab();
 							}
 						);
 				});
@@ -547,7 +552,7 @@ export function renderTaskHandlerSettingsTab(
 					settingTab.plugin.settings.sortTasks = value;
 					settingTab.applySettingsUpdate();
 					// Refresh the settings display to show/hide criteria section
-					settingTab.display(); // Or just this section if optimized
+					refreshTaskHandlerSettingsTab();
 				});
 		});
 
@@ -745,7 +750,7 @@ export function renderTaskHandlerSettingsTab(
 					settingTab.plugin.settings.onCompletion.enableOnCompletion =
 						value;
 					settingTab.applySettingsUpdate();
-					settingTab.display(); // Refresh to show/hide onCompletion settings
+					refreshTaskHandlerSettingsTab();
 				})
 		);
 

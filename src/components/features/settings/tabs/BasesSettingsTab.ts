@@ -6,6 +6,11 @@ import { ConfirmModal } from "@/components/ui/modals/ConfirmModal";
 export function renderBasesSettingsTab(settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement
 ) {
+	const refreshBasesSettingsTab = () => {
+		containerEl.empty();
+		renderBasesSettingsTab(settingTab, containerEl);
+	};
+
     new Setting(containerEl)
 		.setName(t("Base View"))
 		.setDesc(
@@ -50,7 +55,7 @@ export function renderBasesSettingsTab(settingTab: TaskProgressBarSettingTab,
 								if (!confirmed) {
 									setTimeout(() => {
 										toggle.setValue(false);
-										settingTab.display();
+										refreshBasesSettingsTab();
 									}, 200);
 									return;
 								}
@@ -64,7 +69,7 @@ export function renderBasesSettingsTab(settingTab: TaskProgressBarSettingTab,
 									confirmed;
 								settingTab.applySettingsUpdate();
 								setTimeout(() => {
-									settingTab.display();
+									refreshBasesSettingsTab();
 								}, 200);
 							},
 						}).open();
@@ -75,7 +80,7 @@ export function renderBasesSettingsTab(settingTab: TaskProgressBarSettingTab,
 						}
 						settingTab.applySettingsUpdate();
 						setTimeout(() => {
-							settingTab.display();
+							refreshBasesSettingsTab();
 						}, 200);
 					}
 				})

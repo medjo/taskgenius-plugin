@@ -8,6 +8,11 @@ export function renderWorkflowSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement
 ) {
+	const refreshWorkflowSettingsTab = () => {
+		containerEl.empty();
+		renderWorkflowSettingsTab(settingTab, containerEl);
+	};
+
 	new Setting(containerEl)
 		.setName(t("Workflow"))
 		.setDesc(
@@ -26,7 +31,7 @@ export function renderWorkflowSettingsTab(
 					settingTab.applySettingsUpdate();
 
 					setTimeout(() => {
-						settingTab.display();
+						refreshWorkflowSettingsTab();
 					}, 200);
 				});
 		});
@@ -47,7 +52,7 @@ export function renderWorkflowSettingsTab(
 					settingTab.applySettingsUpdate();
 
 					setTimeout(() => {
-						settingTab.display();
+						refreshWorkflowSettingsTab();
 					}, 200);
 				});
 		});
@@ -122,7 +127,7 @@ export function renderWorkflowSettingsTab(
 						settingTab.applySettingsUpdate();
 
 						setTimeout(() => {
-							settingTab.display();
+							refreshWorkflowSettingsTab();
 						}, 200);
 					});
 			});

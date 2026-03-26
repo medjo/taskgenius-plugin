@@ -17,6 +17,11 @@ export function renderWorkspaceSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement,
 ) {
+	const refreshWorkspaceSettingsTab = () => {
+		containerEl.empty();
+		renderWorkspaceSettingsTab(settingTab, containerEl);
+	};
+
 	const workspacesSection = containerEl.createDiv();
 	workspacesSection.addClass("workspaces-settings-section");
 
@@ -57,7 +62,11 @@ export function renderWorkspaceSettingsTab(
 		)
 		.addButton((button) => {
 			button.setButtonText(t("Switch Workspace")).onClick((evt) => {
-				showWorkspaceSelector(settingTab, evt);
+				showWorkspaceSelector(
+					settingTab,
+					evt,
+					refreshWorkspaceSettingsTab,
+				);
 			});
 		});
 
@@ -123,7 +132,7 @@ export function renderWorkspaceSettingsTab(
 						await settingTab.plugin.workspaceManager!.setActiveWorkspace(
 							workspace.id,
 						);
-						settingTab.display();
+						refreshWorkspaceSettingsTab();
 					});
 				}
 			})
@@ -144,7 +153,11 @@ export function renderWorkspaceSettingsTab(
 					.setIcon("edit")
 					.setTooltip(t("Rename"))
 					.onClick(() => {
-						showRenameWorkspaceDialog(settingTab, workspace);
+						showRenameWorkspaceDialog(
+							settingTab,
+							workspace,
+							refreshWorkspaceSettingsTab,
+						);
 					});
 			})
 			.addExtraButton((button) => {
@@ -158,7 +171,11 @@ export function renderWorkspaceSettingsTab(
 						.setIcon("trash")
 						.setTooltip(t("Delete"))
 						.onClick(() => {
-							showDeleteWorkspaceDialog(settingTab, workspace);
+							showDeleteWorkspaceDialog(
+								settingTab,
+								workspace,
+								refreshWorkspaceSettingsTab,
+							);
 						});
 				}
 			});
@@ -173,7 +190,10 @@ export function renderWorkspaceSettingsTab(
 				.setButtonText(t("Create"))
 				.setCta()
 				.onClick(() => {
-					showCreateWorkspaceDialog(settingTab);
+					showCreateWorkspaceDialog(
+						settingTab,
+						refreshWorkspaceSettingsTab,
+					);
 				});
 		});
 }
@@ -181,6 +201,7 @@ export function renderWorkspaceSettingsTab(
 function showWorkspaceSelector(
 	settingTab: TaskProgressBarSettingTab,
 	event: MouseEvent,
+	refreshWorkspaceSettingsTab: () => void,
 ) {
 	if (!settingTab.plugin.workspaceManager) return;
 
@@ -201,7 +222,7 @@ function showWorkspaceSelector(
 						to: workspace.id,
 					});
 
-					this.display();
+					refreshWorkspaceSettingsTab();
 				});
 
 			if (workspace.id === currentWorkspace.id) {
@@ -213,33 +234,38 @@ function showWorkspaceSelector(
 	menu.showAtMouseEvent(event);
 }
 
-function showCreateWorkspaceDialog(settingTab: TaskProgressBarSettingTab) {
+function showCreateWorkspaceDialog(
+	settingTab: TaskProgressBarSettingTab,
+	refreshWorkspaceSettingsTab: () => void,
+) {
 	if (!settingTab.plugin.workspaceManager) return;
 
 	new CreateWorkspaceModal(settingTab.plugin, () => {
-		settingTab.display();
+		refreshWorkspaceSettingsTab();
 	}).open();
 }
 
 function showRenameWorkspaceDialog(
 	settingTab: TaskProgressBarSettingTab,
 	workspace: WorkspaceData,
+	refreshWorkspaceSettingsTab: () => void,
 ) {
 	if (!settingTab.plugin.workspaceManager) return;
 
 	new RenameWorkspaceModal(settingTab.plugin, workspace, () => {
-		settingTab.display();
+		refreshWorkspaceSettingsTab();
 	}).open();
 }
 
 function showDeleteWorkspaceDialog(
 	settingTab: TaskProgressBarSettingTab,
 	workspace: WorkspaceData,
+	refreshWorkspaceSettingsTab: () => void,
 ) {
 	if (!settingTab.plugin.workspaceManager) return;
 
 	new DeleteWorkspaceModal(settingTab.plugin, workspace, () => {
-		settingTab.display();
+		refreshWorkspaceSettingsTab();
 	}).open();
 }
 

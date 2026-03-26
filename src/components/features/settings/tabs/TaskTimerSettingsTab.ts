@@ -5,6 +5,11 @@ export function renderTaskTimerSettingTab(
 	settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement
 ) {
+	const refreshTaskTimerSettingsTab = () => {
+		containerEl.empty();
+		renderTaskTimerSettingTab(settingTab, containerEl);
+	};
+
     // Create task timer settings section
 		const timerSection = containerEl.createDiv();
 		timerSection.addClass("task-timer-settings-section");
@@ -35,7 +40,7 @@ export function renderTaskTimerSettingTab(
 						settingTab.applySettingsUpdate();
 
 						// Re-render the section to show/hide additional options
-						settingTab.display();
+						refreshTaskTimerSettingsTab();
 					});
 			});
 

@@ -44,7 +44,7 @@ export function renderIndexSettingsTab(
 			toggle.onChange(async (value) => {
 				settingTab.plugin.settings.enableIndexer = value;
 				settingTab.applySettingsUpdate();
-				settingTab.display(); // Refresh settings display
+				refreshIndexSettingsTab();
 
 				// Show restart notice
 				new Notice(
@@ -163,7 +163,7 @@ export function renderIndexSettingsTab(
 						settingTab.applySettingsUpdate();
 						// Re-render the settings to update prefix configuration UI
 						setTimeout(() => {
-							settingTab.display();
+							refreshIndexSettingsTab();
 						}, 200);
 					});
 			});
@@ -186,7 +186,7 @@ export function renderIndexSettingsTab(
 						settingTab.plugin.settings.enableCustomDateFormats =
 							value;
 						settingTab.applySettingsUpdate();
-						settingTab.display(); // Refresh to show/hide custom formats settings
+						refreshIndexSettingsTab();
 					});
 			});
 
@@ -469,7 +469,7 @@ export function renderIndexSettingsTab(
 					settingTab.applySettingsUpdate();
 
 					setTimeout(() => {
-						settingTab.display();
+						refreshIndexSettingsTab();
 					}, 200);
 				});
 			});
@@ -724,7 +724,7 @@ export function renderIndexSettingsTab(
 						}).open();
 
 						setTimeout(() => {
-							settingTab.display();
+							refreshIndexSettingsTab();
 						}, 200);
 					}),
 			);

@@ -105,6 +105,11 @@ export function renderProjectSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement,
 ) {
+	const refreshProjectSettingsTab = () => {
+		containerEl.empty();
+		renderProjectSettingsTab(settingTab, containerEl);
+	};
+
 	// ============================================================
 	// Section 1: Page Title and General Description
 	// ============================================================
@@ -152,7 +157,7 @@ export function renderProjectSettingsTab(
 					await settingTab.plugin.saveSettings();
 					// Refresh page to show/hide detailed settings
 					setTimeout(() => {
-						settingTab.display();
+						refreshProjectSettingsTab();
 					}, 200);
 				});
 		});
@@ -799,7 +804,7 @@ export function renderProjectSettingsTab(
 						projectConfig.defaultProjectNaming.enabled = value;
 						await settingTab.plugin.saveSettings();
 						setTimeout(() => {
-							settingTab.display();
+							refreshProjectSettingsTab();
 						}, 200);
 					}
 				});
@@ -825,7 +830,7 @@ export function renderProjectSettingsTab(
 							| "metadata";
 						await settingTab.plugin.saveSettings();
 						setTimeout(() => {
-							settingTab.display();
+							refreshProjectSettingsTab();
 						}, 200);
 					}
 				});

@@ -8,14 +8,19 @@ import {
 	TaskStatusConfig,
 	StatusCycle,
 } from "@/common/setting-definition";
-import * as taskStatusModule from "@/common/task-status";
 import Sortable from "sortablejs";
 import { ListConfigModal } from "@/components/ui/modals/ListConfigModal";
+import * as taskStatusModule from "@/common/task-status";
 
 export function renderTaskStatusSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement,
 ) {
+	const refreshTaskStatusSettingsTab = () => {
+		containerEl.empty();
+		renderTaskStatusSettingsTab(settingTab, containerEl);
+	};
+
 	new Setting(containerEl)
 		.setName(t("Task Status Configuration"))
 		.setDesc(
@@ -254,7 +259,7 @@ export function renderTaskStatusSettingsTab(
 
 							// Save settings and refresh the display
 							settingTab.applySettingsUpdate();
-							settingTab.display();
+							refreshTaskStatusSettingsTab();
 						}
 					} catch (error) {
 						console.error(
@@ -470,7 +475,7 @@ export function renderTaskStatusSettingsTab(
 					settingTab.applySettingsUpdate();
 
 					setTimeout(() => {
-						settingTab.display();
+						refreshTaskStatusSettingsTab();
 					}, 200);
 				}),
 		);
@@ -546,7 +551,7 @@ export function renderTaskStatusSettingsTab(
 					settingTab.applySettingsUpdate();
 
 					setTimeout(() => {
-						settingTab.display();
+						refreshTaskStatusSettingsTab();
 					}, 200);
 				});
 		});
@@ -616,7 +621,7 @@ export function renderTaskStatusSettingsTab(
 
 					// Refresh display to show/hide dependent options
 					setTimeout(() => {
-						settingTab.display();
+						refreshTaskStatusSettingsTab();
 					}, 200);
 				});
 			});
@@ -691,7 +696,7 @@ export function renderTaskStatusSettingsTab(
 					settingTab.applySettingsUpdate();
 
 					setTimeout(() => {
-						settingTab.display();
+						refreshTaskStatusSettingsTab();
 					}, 200);
 				});
 		});
@@ -849,7 +854,7 @@ export function renderTaskStatusSettingsTab(
 
 								// Save settings and refresh the display
 								settingTab.applySettingsUpdate();
-								settingTab.display();
+								refreshTaskStatusSettingsTab();
 							}
 						} catch (error) {
 							console.error(
@@ -864,7 +869,11 @@ export function renderTaskStatusSettingsTab(
 			});
 
 		// Render the unified multi-cycle management interface
-		renderMultiCycleManagement(settingTab, containerEl);
+		renderMultiCycleManagement(
+			settingTab,
+			containerEl,
+			refreshTaskStatusSettingsTab,
+		);
 	}
 
 	// Auto Date Manager Settings
@@ -902,7 +911,7 @@ export function renderTaskStatusSettingsTab(
 					settingTab.plugin.settings.autoDateManager.enabled = value;
 					settingTab.applySettingsUpdate();
 					setTimeout(() => {
-						settingTab.display();
+						refreshTaskStatusSettingsTab();
 					}, 200);
 				}),
 		);
@@ -977,6 +986,7 @@ export function renderTaskStatusSettingsTab(
 function renderMultiCycleManagement(
 	settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement,
+	refreshTaskStatusSettingsTab: () => void,
 ) {
 	// Quick Templates section - buttons to add preset cycles
 	new Setting(containerEl)
@@ -1001,7 +1011,7 @@ function renderMultiCycleManagement(
 						enabled: true,
 					});
 					settingTab.applySettingsUpdate();
-					setTimeout(() => settingTab.display(), 200);
+					setTimeout(() => refreshTaskStatusSettingsTab(), 200);
 				});
 		})
 		.addButton((button) => {
@@ -1024,7 +1034,7 @@ function renderMultiCycleManagement(
 						enabled: true,
 					});
 					settingTab.applySettingsUpdate();
-					setTimeout(() => settingTab.display(), 200);
+					setTimeout(() => refreshTaskStatusSettingsTab(), 200);
 				});
 		})
 		.addButton((button) => {
@@ -1048,7 +1058,7 @@ function renderMultiCycleManagement(
 						enabled: true,
 					});
 					settingTab.applySettingsUpdate();
-					setTimeout(() => settingTab.display(), 200);
+					setTimeout(() => refreshTaskStatusSettingsTab(), 200);
 				});
 		});
 
@@ -1114,7 +1124,7 @@ function renderMultiCycleManagement(
 						cycles[currentIndex].priority;
 					cycles[currentIndex].priority = temp;
 					settingTab.applySettingsUpdate();
-					setTimeout(() => settingTab.display(), 200);
+					setTimeout(() => refreshTaskStatusSettingsTab(), 200);
 				}
 			});
 		}
@@ -1137,7 +1147,7 @@ function renderMultiCycleManagement(
 						cycles[currentIndex].priority;
 					cycles[currentIndex].priority = temp;
 					settingTab.applySettingsUpdate();
-					setTimeout(() => settingTab.display(), 200);
+					setTimeout(() => refreshTaskStatusSettingsTab(), 200);
 				}
 			});
 		}
@@ -1175,7 +1185,7 @@ function renderMultiCycleManagement(
 					.onChange(async (value) => {
 						cycle.enabled = value;
 						settingTab.applySettingsUpdate();
-						setTimeout(() => settingTab.display(), 200);
+						setTimeout(() => refreshTaskStatusSettingsTab(), 200);
 					});
 			})
 			.addExtraButton((button) => {
@@ -1200,7 +1210,7 @@ function renderMultiCycleManagement(
 							copiedCycle,
 						);
 						settingTab.applySettingsUpdate();
-						setTimeout(() => settingTab.display(), 200);
+						setTimeout(() => refreshTaskStatusSettingsTab(), 200);
 					});
 			})
 			.addExtraButton((button) => {
@@ -1218,7 +1228,10 @@ function renderMultiCycleManagement(
 								1,
 							);
 							settingTab.applySettingsUpdate();
-							setTimeout(() => settingTab.display(), 200);
+							setTimeout(
+								() => refreshTaskStatusSettingsTab(),
+								200,
+							);
 						}
 					});
 			});
@@ -1291,7 +1304,10 @@ function renderMultiCycleManagement(
 							cycle.cycle.splice(statusIndex, 1);
 							delete cycle.marks[statusName];
 							settingTab.applySettingsUpdate();
-							setTimeout(() => settingTab.display(), 200);
+							setTimeout(
+								() => refreshTaskStatusSettingsTab(),
+								200,
+							);
 						});
 				});
 		});
@@ -1304,7 +1320,6 @@ function renderMultiCycleManagement(
 			ghostClass: "status-row-ghost",
 			chosenClass: "status-row-chosen",
 			dragClass: "status-row-drag",
-			filter: ".setting-item", // Exclude the add button
 			onEnd: (evt) => {
 				if (evt.oldIndex !== undefined && evt.newIndex !== undefined) {
 					// Reorder the status array
@@ -1312,7 +1327,7 @@ function renderMultiCycleManagement(
 					cycle.cycle.splice(evt.newIndex, 0, movedStatus);
 
 					settingTab.applySettingsUpdate();
-					setTimeout(() => settingTab.display(), 200);
+					setTimeout(() => refreshTaskStatusSettingsTab(), 200);
 				}
 			},
 		});
@@ -1324,7 +1339,7 @@ function renderMultiCycleManagement(
 				cycle.cycle.push(newStatus);
 				cycle.marks[newStatus] = " ";
 				settingTab.applySettingsUpdate();
-				setTimeout(() => settingTab.display(), 200);
+				setTimeout(() => refreshTaskStatusSettingsTab(), 200);
 			});
 		});
 	});
@@ -1348,7 +1363,7 @@ function renderMultiCycleManagement(
 					enabled: true,
 				});
 				settingTab.applySettingsUpdate();
-				setTimeout(() => settingTab.display(), 200);
+				setTimeout(() => refreshTaskStatusSettingsTab(), 200);
 			});
 	});
 }

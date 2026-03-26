@@ -9,6 +9,11 @@ export function renderAboutSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement
 ) {
+	const refreshAboutSettingsTab = () => {
+		containerEl.empty();
+		renderAboutSettingsTab(settingTab, containerEl);
+	};
+
 	new Setting(containerEl).setName(t("About") + " Task Genius").setHeading();
 
 	new Setting(containerEl)
@@ -95,7 +100,7 @@ export function renderAboutSettingsTab(
 								await settingTab.plugin.saveSettings();
 
 								// Refresh the settings display
-								settingTab.display();
+								refreshAboutSettingsTab();
 
 								// Show success notice
 								new Notice(
