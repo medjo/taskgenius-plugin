@@ -1,4 +1,12 @@
-import { App, TFile, Vault, MetadataCache, EventRef, debounce } from "obsidian";
+import {
+	App,
+	TFile,
+	Vault,
+	MetadataCache,
+	EventRef,
+	debounce,
+	MarkdownView,
+} from "obsidian";
 import type { Task, TgProject } from "../types/task";
 import type { ProjectConfigManagerOptions } from "../managers/project-config-manager";
 
@@ -24,7 +32,14 @@ import { ConfigurableTaskParser } from "./core/ConfigurableTaskParser";
 import { MetadataParseMode } from "../types/TaskParserConfig";
 import { TimeParsingService } from "../services/time-parsing-service";
 import type { EnhancedTimeParsingConfig } from "../types/time-parsing";
-import { syncDailyNoteDerivedDatesToTaskLines } from "@/utils/date/daily-note-date-sync";
+import {
+	isManualSaveKeydown,
+	shouldTriggerDailyNoteDateSync,
+	shouldForceSyncOnVimEscape,
+	shouldDeferDailyNoteDateSync,
+	syncDailyNoteDerivedDatesToTaskLines,
+	type DailyNoteDateSyncTrigger,
+} from "@/utils/date/daily-note-date-sync";
 
 /**
  * DataflowOrchestrator - Coordinates all dataflow components
@@ -50,10 +65,16 @@ export class DataflowOrchestrator {
 
 	// Event references for cleanup
 	private eventRefs: EventRef[] = [];
+	private domCleanupFns: Array<() => void> = [];
 
 	// Processing queue for throttling
 	private processingQueue = new Map<string, NodeJS.Timeout>();
+	private pendingDailyNoteDateSyncFiles = new Set<string>();
+	private pendingDailyNoteDateSyncTimers = new Map<string, NodeJS.Timeout>();
+	private forceImmediateDailyNoteDateSyncFiles = new Set<string>();
+	private lastKnownActiveMarkdownFilePath?: string;
 	private readonly DEBOUNCE_DELAY = 300; // ms
+	private readonly DAILY_NOTE_DATE_SYNC_FLUSH_MS = 250;
 
 	// Lightweight bookkeeping for filter-based pruning/restoration
 	private suppressedInline = new Set<string>();
@@ -610,7 +631,99 @@ export class DataflowOrchestrator {
 					}
 				}),
 			);
-		}
+			}
+
+		this.lastKnownActiveMarkdownFilePath = this.getActiveMarkdownFilePath();
+
+		this.eventRefs.push(
+			this.app.workspace.on("active-leaf-change", async () => {
+				const previousFilePath = this.lastKnownActiveMarkdownFilePath;
+				const nextFilePath = this.getActiveMarkdownFilePath();
+				this.lastKnownActiveMarkdownFilePath = nextFilePath;
+
+				if (
+					previousFilePath &&
+					previousFilePath !== nextFilePath &&
+					this.pendingDailyNoteDateSyncFiles.has(previousFilePath)
+				) {
+					await this.handleDailyNoteDateSyncTrigger("focus-out");
+				}
+			}),
+		);
+
+		const onDocumentFocusIn = (event: FocusEvent) => {
+			const activeView = this.app.workspace.getActiveViewOfType?.(
+				MarkdownView,
+			) as any;
+			const viewContainer = activeView?.containerEl as HTMLElement | undefined;
+			const target = event.target as Node | null;
+
+			// Ignore focus transitions that stay inside the same markdown view.
+			// This avoids flushing when clicking the task gutter or controls within the editor pane.
+			if (viewContainer && target && viewContainer.contains(target)) {
+				return;
+			}
+
+			void this.handleDailyNoteDateSyncTrigger("focus-out");
+		};
+		document.addEventListener("focusin", onDocumentFocusIn, true);
+		this.domCleanupFns.push(() =>
+			document.removeEventListener("focusin", onDocumentFocusIn, true),
+		);
+
+		const onWindowBlur = () => {
+			void this.handleDailyNoteDateSyncTrigger("focus-out");
+		};
+		window.addEventListener("blur", onWindowBlur, true);
+		this.domCleanupFns.push(() =>
+			window.removeEventListener("blur", onWindowBlur, true),
+		);
+
+		const tryHandleManualSave = (event: KeyboardEvent) => {
+			if (
+				isManualSaveKeydown({
+					key: event.key,
+					code: event.code,
+					keyCode: (event as any).keyCode,
+					ctrlKey: event.ctrlKey,
+					metaKey: event.metaKey,
+				})
+			) {
+				void this.handleDailyNoteDateSyncTrigger("manual-save");
+				return true;
+			}
+			return false;
+		};
+
+		const onKeydown = (event: KeyboardEvent) => {
+			if (tryHandleManualSave(event)) {
+				return;
+			}
+
+			const vimModeEnabled =
+				(this.app.vault as any).getConfig?.("vimMode") === true ||
+				(this.app as any).getConfig?.("vimMode") === true;
+			if (
+				shouldForceSyncOnVimEscape({
+					key: event.key,
+					vimModeEnabled,
+				})
+			) {
+				void this.handleDailyNoteDateSyncTrigger("vim-normal");
+			}
+		};
+		document.addEventListener("keydown", onKeydown, true);
+		this.domCleanupFns.push(() =>
+			document.removeEventListener("keydown", onKeydown, true),
+		);
+
+		const onKeyup = (event: KeyboardEvent) => {
+			void tryHandleManualSave(event);
+		};
+		document.addEventListener("keyup", onKeyup, true);
+		this.domCleanupFns.push(() =>
+			document.removeEventListener("keyup", onKeyup, true),
+		);
 	}
 
 	/**
@@ -804,23 +917,35 @@ export class DataflowOrchestrator {
 						);
 
 						if (syncResult.changed) {
-							emit(this.app, Events.WRITE_OPERATION_START, {
-								path: filePath,
-								taskId: "__daily-note-date-sync__",
-							});
-							await this.vault.modify(file, syncResult.content);
-							emit(this.app, Events.WRITE_OPERATION_COMPLETE, {
-								path: filePath,
-								taskId: "__daily-note-date-sync__",
-							});
-
-							fileContent = syncResult.content;
-							const updatedStat =
-								await this.vault.adapter.stat(filePath);
-							if (updatedStat?.mtime) {
+							if (
+								this.isFileActivelyEdited(filePath) &&
+								!this.forceImmediateDailyNoteDateSyncFiles.has(
+									filePath,
+								)
+							) {
+								this.markPendingDailyNoteDateSync(filePath);
 								console.log(
-									`[DataflowOrchestrator] Persisted ${syncResult.changedLineCount} derived daily note date(s) to ${filePath}`,
+									`[DataflowOrchestrator] Deferred persistence of ${syncResult.changedLineCount} daily note date(s) for ${filePath} while editor is active`,
 								);
+							} else {
+								emit(this.app, Events.WRITE_OPERATION_START, {
+									path: filePath,
+									taskId: "__daily-note-date-sync__",
+								});
+								await this.vault.modify(file, syncResult.content);
+								emit(this.app, Events.WRITE_OPERATION_COMPLETE, {
+									path: filePath,
+									taskId: "__daily-note-date-sync__",
+								});
+
+								fileContent = syncResult.content;
+								const updatedStat =
+									await this.vault.adapter.stat(filePath);
+								if (updatedStat?.mtime) {
+									console.log(
+										`[DataflowOrchestrator] Persisted ${syncResult.changedLineCount} derived daily note date(s) to ${filePath}`,
+									);
+								}
 							}
 						}
 					}
@@ -878,6 +1003,161 @@ export class DataflowOrchestrator {
 				timestamp: Date.now(),
 			});
 		}
+	}
+
+	private isFileActivelyEdited(filePath: string): boolean {
+		const activeFile = this.app.workspace.getActiveFile?.();
+		const activeView = this.app.workspace.getActiveViewOfType?.(
+			MarkdownView,
+		) as any;
+		const editorHasFocus = Boolean(activeView?.editor?.hasFocus?.());
+
+		return shouldDeferDailyNoteDateSync({
+			targetFilePath: filePath,
+			activeFilePath: activeFile?.path,
+			editorHasFocus,
+		});
+	}
+
+	private async flushPendingDailyNoteDateSyncs(force: boolean): Promise<void> {
+		for (const filePath of Array.from(this.pendingDailyNoteDateSyncFiles)) {
+			await this.flushPendingDailyNoteDateSync(filePath, force);
+		}
+	}
+
+	private hasPendingDailyNoteDateSync(): boolean {
+		return this.pendingDailyNoteDateSyncFiles.size > 0;
+	}
+
+	private getActiveMarkdownFilePath(): string | undefined {
+		const activeView = this.app.workspace.getActiveViewOfType?.(
+			MarkdownView,
+		) as any;
+		return activeView?.file?.path || this.app.workspace.getActiveFile?.()?.path;
+	}
+
+	private getDailyNoteDateSyncSettings() {
+		return {
+			mode:
+				this.plugin.settings.dailyNoteDerivedDateSyncMode ||
+				"first-selected-event",
+			selectedTriggers:
+				this.plugin.settings.dailyNoteDerivedDateSyncTriggers || {
+					focusOut: true,
+					manualSave: true,
+					vimNormal: true,
+				},
+		};
+	}
+
+	private async handleDailyNoteDateSyncTrigger(
+		trigger: DailyNoteDateSyncTrigger,
+	): Promise<void> {
+		const settings = this.getDailyNoteDateSyncSettings();
+		if (
+			!shouldTriggerDailyNoteDateSync({
+				mode: settings.mode,
+				selectedTriggers: settings.selectedTriggers,
+				trigger,
+			})
+		) {
+			return;
+		}
+
+		if (trigger === "focus-out") {
+			await this.flushPendingDailyNoteDateSyncs(true);
+			return;
+		}
+
+		const activeFilePath = this.getActiveMarkdownFilePath();
+		if (activeFilePath) {
+			this.scheduleDeferredDailyNoteDateSync(activeFilePath, {
+				delayMs:
+					trigger === "manual-save"
+						? 180
+						: this.DAILY_NOTE_DATE_SYNC_FLUSH_MS,
+				force: true,
+				allowWithoutPending: true,
+			});
+			return;
+		}
+
+		await this.flushPendingDailyNoteDateSyncs(true);
+	}
+
+	private async flushPendingDailyNoteDateSync(
+		filePath: string,
+		force: boolean,
+	): Promise<void> {
+		const existing = this.pendingDailyNoteDateSyncTimers.get(filePath);
+		if (existing) {
+			clearTimeout(existing);
+		}
+		this.pendingDailyNoteDateSyncTimers.delete(filePath);
+
+		if (!this.pendingDailyNoteDateSyncFiles.has(filePath)) {
+			return;
+		}
+
+		if (!force && this.isFileActivelyEdited(filePath)) {
+			return;
+		}
+
+		this.pendingDailyNoteDateSyncFiles.delete(filePath);
+
+		const file = this.vault.getAbstractFileByPath(filePath) as TFile;
+		if (!file) return;
+
+		await this.processFileImmediate(file, true);
+	}
+
+	private scheduleDeferredDailyNoteDateSync(
+		filePath: string,
+		options?: {
+			delayMs?: number;
+			force?: boolean;
+			allowWithoutPending?: boolean;
+		},
+	): void {
+		const existing = this.pendingDailyNoteDateSyncTimers.get(filePath);
+		if (existing) {
+			clearTimeout(existing);
+		}
+
+		const delayMs = options?.delayMs ?? this.DAILY_NOTE_DATE_SYNC_FLUSH_MS;
+		const force = options?.force ?? false;
+		const allowWithoutPending = options?.allowWithoutPending ?? false;
+
+		const timeoutId = setTimeout(async () => {
+			if (
+				allowWithoutPending &&
+				!this.pendingDailyNoteDateSyncFiles.has(filePath)
+			) {
+				const file = this.vault.getAbstractFileByPath(filePath) as TFile;
+				if (file) {
+					this.forceImmediateDailyNoteDateSyncFiles.add(filePath);
+					try {
+						await this.processFileImmediate(file, true);
+					} finally {
+						this.forceImmediateDailyNoteDateSyncFiles.delete(filePath);
+					}
+				}
+				return;
+			}
+
+			this.forceImmediateDailyNoteDateSyncFiles.add(filePath);
+			try {
+				await this.flushPendingDailyNoteDateSync(filePath, force);
+			} finally {
+				this.forceImmediateDailyNoteDateSyncFiles.delete(filePath);
+			}
+		}, delayMs);
+
+		this.pendingDailyNoteDateSyncTimers.set(filePath, timeoutId);
+	}
+
+	private markPendingDailyNoteDateSync(filePath: string): void {
+		this.pendingDailyNoteDateSyncFiles.add(filePath);
 	}
 
 	/**
@@ -1870,6 +2150,12 @@ export class DataflowOrchestrator {
 			clearTimeout(timeout);
 		}
 		this.processingQueue.clear();
+		for (const timeout of this.pendingDailyNoteDateSyncTimers.values()) {
+			clearTimeout(timeout);
+		}
+		this.pendingDailyNoteDateSyncTimers.clear();
+		this.pendingDailyNoteDateSyncFiles.clear();
+		this.forceImmediateDailyNoteDateSyncFiles.clear();
 
 		// Unsubscribe from events
 		// These are workspace events created by our custom Events.on() function
@@ -1883,6 +2169,10 @@ export class DataflowOrchestrator {
 			}
 		}
 		this.eventRefs = [];
+		for (const cleanup of this.domCleanupFns) {
+			cleanup();
+		}
+		this.domCleanupFns = [];
 
 		// Cleanup ObsidianSource
 		this.obsidianSource.destroy();

@@ -890,6 +890,16 @@ export interface TaskProgressBarSettings {
 	dailyNoteFormat: string;
 	useAsDateType: "due" | "start" | "scheduled";
 	dailyNotePath: string;
+	dailyNoteDerivedDateSyncMode:
+		| "first-selected-event"
+		| "focus-out"
+		| "manual-save"
+		| "vim-normal";
+	dailyNoteDerivedDateSyncTriggers: {
+		focusOut: boolean;
+		manualSave: boolean;
+		vimNormal: boolean;
+	};
 	preferMetadataFormat: "dataview" | "tasks";
 
 	// Task Parser Configuration
@@ -1270,6 +1280,12 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 	dailyNoteFormat: "yyyy-MM-dd",
 	useAsDateType: "due",
 	dailyNotePath: "",
+	dailyNoteDerivedDateSyncMode: "first-selected-event",
+	dailyNoteDerivedDateSyncTriggers: {
+		focusOut: true,
+		manualSave: true,
+		vimNormal: true,
+	},
 	preferMetadataFormat: "tasks",
 
 	// Task Parser Configuration

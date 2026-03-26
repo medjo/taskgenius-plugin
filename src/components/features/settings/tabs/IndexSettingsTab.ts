@@ -19,6 +19,11 @@ export function renderIndexSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
 	containerEl: HTMLElement,
 ) {
+	const refreshIndexSettingsTab = () => {
+		containerEl.empty();
+		renderIndexSettingsTab(settingTab, containerEl);
+	};
+
 	// Main heading
 	new Setting(containerEl)
 		.setName(t("Index & Task Source Configuration"))
@@ -529,6 +534,134 @@ export function renderIndexSettingsTab(
 							settingTab.applySettingsUpdate();
 						});
 				});
+
+			new Setting(containerEl)
+				.setName(t("Derived daily note date sync"))
+				.setDesc(
+					t(
+						"Choose when derived dates from the daily note path should be persisted back into inline task metadata.",
+					),
+				)
+				.addDropdown((dropdown) => {
+					dropdown
+						.addOption(
+							"first-selected-event",
+							t("First selected event"),
+						)
+						.addOption("focus-out", t("Editor focus out"))
+						.addOption("manual-save", t("Manual save"))
+						.addOption("vim-normal", t("Exit Vim insert mode"))
+						.setValue(
+							settingTab.plugin.settings
+								.dailyNoteDerivedDateSyncMode ||
+								"first-selected-event",
+						)
+						.onChange((value) => {
+							settingTab.plugin.settings.dailyNoteDerivedDateSyncMode =
+								value as
+									| "first-selected-event"
+									| "focus-out"
+									| "manual-save"
+									| "vim-normal";
+							settingTab.applySettingsUpdate();
+
+							setTimeout(() => {
+								refreshIndexSettingsTab();
+							}, 200);
+						});
+				});
+
+			if (
+				(settingTab.plugin.settings.dailyNoteDerivedDateSyncMode ||
+					"first-selected-event") === "first-selected-event"
+			) {
+				new Setting(containerEl)
+					.setName(t("Sync on editor focus out"))
+					.setDesc(
+						t(
+							"Persist derived dates when the editor loses focus or the active leaf changes.",
+						),
+					)
+					.addToggle((toggle) => {
+						toggle
+							.setValue(
+								settingTab.plugin.settings
+									.dailyNoteDerivedDateSyncTriggers?.focusOut ??
+									true,
+							)
+							.onChange((value) => {
+								settingTab.plugin.settings.dailyNoteDerivedDateSyncTriggers =
+									{
+										...(settingTab.plugin.settings
+											.dailyNoteDerivedDateSyncTriggers || {
+											focusOut: true,
+											manualSave: true,
+											vimNormal: true,
+										}),
+										focusOut: value,
+									};
+								settingTab.applySettingsUpdate();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName(t("Sync on manual save"))
+					.setDesc(
+						t(
+							"Persist derived dates when Ctrl/Cmd+S is pressed in the editor.",
+						),
+					)
+					.addToggle((toggle) => {
+						toggle
+							.setValue(
+								settingTab.plugin.settings
+									.dailyNoteDerivedDateSyncTriggers?.manualSave ??
+									true,
+							)
+							.onChange((value) => {
+								settingTab.plugin.settings.dailyNoteDerivedDateSyncTriggers =
+									{
+										...(settingTab.plugin.settings
+											.dailyNoteDerivedDateSyncTriggers || {
+											focusOut: true,
+											manualSave: true,
+											vimNormal: true,
+										}),
+										manualSave: value,
+									};
+								settingTab.applySettingsUpdate();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName(t("Sync on Vim normal mode"))
+					.setDesc(
+						t(
+							"Persist derived dates when Escape is pressed while Obsidian Vim mode is enabled.",
+						),
+					)
+					.addToggle((toggle) => {
+						toggle
+							.setValue(
+								settingTab.plugin.settings
+									.dailyNoteDerivedDateSyncTriggers?.vimNormal ??
+									true,
+							)
+							.onChange((value) => {
+								settingTab.plugin.settings.dailyNoteDerivedDateSyncTriggers =
+									{
+										...(settingTab.plugin.settings
+											.dailyNoteDerivedDateSyncTriggers || {
+											focusOut: true,
+											manualSave: true,
+											vimNormal: true,
+										}),
+										vimNormal: value,
+									};
+								settingTab.applySettingsUpdate();
+							});
+					});
+			}
 		}
 
 		// File Metadata Inheritance Settings

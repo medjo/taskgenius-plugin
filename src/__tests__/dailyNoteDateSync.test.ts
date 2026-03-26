@@ -1,5 +1,11 @@
 import type { Task } from "../types/task";
-import { syncDailyNoteDerivedDatesToTaskLines } from "../utils/date/daily-note-date-sync";
+import {
+	isManualSaveKeydown,
+	shouldTriggerDailyNoteDateSync,
+	shouldForceSyncOnVimEscape,
+	shouldDeferDailyNoteDateSync,
+	syncDailyNoteDerivedDatesToTaskLines,
+} from "../utils/date/daily-note-date-sync";
 import { formatDate as formatDateSmart } from "../utils/date/date-utils";
 
 function createTask(
@@ -102,5 +108,106 @@ describe("syncDailyNoteDerivedDatesToTaskLines", () => {
 
 		expect(result.changed).toBe(true);
 		expect(result.content).toBe(`- [ ] Review PR ⏳ ${formattedDerivedDate}`);
+	});
+
+	test("defers persistence while the same file is actively focused in the editor", () => {
+		expect(
+			shouldDeferDailyNoteDateSync({
+				targetFilePath: "Daily/2026-03-24.md",
+				activeFilePath: "Daily/2026-03-24.md",
+				editorHasFocus: true,
+			}),
+		).toBe(true);
+
+		expect(
+			shouldDeferDailyNoteDateSync({
+				targetFilePath: "Daily/2026-03-24.md",
+				activeFilePath: "Daily/2026-03-24.md",
+				editorHasFocus: false,
+			}),
+		).toBe(false);
+	});
+
+	test("recognizes manual save and vim escape triggers", () => {
+		expect(
+			isManualSaveKeydown({
+				key: "s",
+				code: "KeyS",
+				keyCode: 83,
+				ctrlKey: true,
+				metaKey: false,
+			}),
+		).toBe(true);
+		expect(
+			isManualSaveKeydown({
+				key: "",
+				code: "KeyS",
+				keyCode: 83,
+				ctrlKey: true,
+				metaKey: false,
+			}),
+		).toBe(true);
+		expect(
+			shouldForceSyncOnVimEscape({
+				key: "Escape",
+				vimModeEnabled: true,
+			}),
+		).toBe(true);
+		expect(
+			shouldForceSyncOnVimEscape({
+				key: "Escape",
+				vimModeEnabled: false,
+			}),
+		).toBe(false);
+	});
+
+	test("matches sync triggers according to the selected mode", () => {
+		expect(
+			shouldTriggerDailyNoteDateSync({
+				mode: "focus-out",
+				selectedTriggers: {
+					focusOut: false,
+					manualSave: true,
+					vimNormal: true,
+				},
+				trigger: "focus-out",
+			}),
+		).toBe(true);
+
+		expect(
+			shouldTriggerDailyNoteDateSync({
+				mode: "manual-save",
+				selectedTriggers: {
+					focusOut: true,
+					manualSave: true,
+					vimNormal: true,
+				},
+				trigger: "focus-out",
+			}),
+		).toBe(false);
+
+		expect(
+			shouldTriggerDailyNoteDateSync({
+				mode: "first-selected-event",
+				selectedTriggers: {
+					focusOut: false,
+					manualSave: true,
+					vimNormal: false,
+				},
+				trigger: "manual-save",
+			}),
+		).toBe(true);
+
+		expect(
+			shouldTriggerDailyNoteDateSync({
+				mode: "first-selected-event",
+				selectedTriggers: {
+					focusOut: false,
+					manualSave: true,
+					vimNormal: false,
+				},
+				trigger: "vim-normal",
+			}),
+		).toBe(false);
 	});
 });
