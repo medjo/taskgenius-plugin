@@ -254,6 +254,10 @@ export class CalendarComponent extends Component {
 		this.tasks = newTasks;
 		this.badgeEventsCache.clear();
 		this.processTasks();
+		if (this.tgCalendar) {
+			this.tgCalendar.setEvents(this.convertTasksToTGEvents());
+			return;
+		}
 		this.renderCurrentView();
 	}
 
